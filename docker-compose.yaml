@@ -53,3 +53,45 @@ services:
       POSTGRES_DB: users
     volumes:
       - ./data/db-data/postgres/:/var/lib/postgresql/data/
+
+  # Observability tools
+
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: jaeger
+    ports:
+      - "16686:16686"
+      - "14268:14268"
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+      - LOG_LEVEL=debug
+
+  otel-collector:
+    image: otel/opentelemetry-collector:latest
+    container_name: "otel"
+    command: [ "--config=/etc/otel-collector-config.yaml" ]
+    volumes:
+      - ./config/otel/config.yaml:/etc/otel-collector-config.yaml
+    ports:
+      - "55680:55680"
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: "grafana"
+    ports:
+      - 3000:3000
+    volumes:
+      - ./data/grafana/:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=secret
+
+  tempo:
+    image: grafana/tempo:latest
+    container_name: "tempo"
+    volumes:
+      - ./config/tempo/tempo-local.yaml:/etc/tempo-local.yaml
+    command: "-config.file=/etc/tempo-local.yaml"
+    ports:
+      - "3100:3100"
+      - "3200:3200"
