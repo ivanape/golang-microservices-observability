@@ -23,6 +23,23 @@ type AuthPayload struct {
 
 func (app *Config) Broker(w http.ResponseWriter, r *http.Request) {
 
+	// The most interesting part
+
+	// initialize tracer
+	tracer := otel.Tracer("broker-service")
+
+	// get ctx, and span from tracer by starting it
+	ctx, span := tracer.Start(r.Context(), "BrokerHandler")
+	defer span.End()
+
+	// creating request to send ctx to auth service, for auth service to catch context
+	ctxReq, _ := http.NewRequest("GET", "http://localhost:8080/auth", nil)
+	otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(ctxReq.Header))
+
+	// Send ctx to auth service
+	client := &http.Client{}
+	client.Do(ctxReq)
+
 	payload := jsonResponse{
 		Error:   false,
 		Message: "Hit the broker",
