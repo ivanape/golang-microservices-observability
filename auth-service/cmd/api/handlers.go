@@ -3,11 +3,22 @@ package main
 import (
 	"errors"
 	"fmt"
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/propagation"
 	"log"
 	"net/http"
 )
 
 func (app *Config) Authenticate(w http.ResponseWriter, r *http.Request) {
+
+	tracer := otel.Tracer("auth-service")
+
+	// Extract the span context from the incoming request
+	ctx := otel.GetTextMapPropagator().Extract(r.Context(), propagation.HeaderCarrier(r.Header))
+
+	// Start a new span as a child of the extracted span context
+	ctx, span := tracer.Start(ctx, "AuthHandler")
+	defer span.End()
 
 	var requestPayload struct {
 		Email    string `json:"email"`
