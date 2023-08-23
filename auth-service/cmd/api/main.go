@@ -2,6 +2,7 @@ package main
 
 import (
 	"authentication/data"
+	"authentication/tracing"
 	"context"
 	"database/sql"
 	"fmt"
@@ -26,6 +27,8 @@ type Config struct {
 }
 
 func main() {
+
+	tracing.InitTracer("auth-service")
 
 	log.Println("Starting authentication service")
 

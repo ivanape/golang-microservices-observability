@@ -3,22 +3,27 @@ package main
 import (
 	"errors"
 	"fmt"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/propagation"
+	"github.com/opentracing/opentracing-go"
 	"log"
 	"net/http"
 )
 
 func (app *Config) Authenticate(w http.ResponseWriter, r *http.Request) {
 
-	tracer := otel.Tracer("auth-service")
+	tracer := opentracing.GlobalTracer()
 
-	// Extract the span context from the incoming request
-	ctx := otel.GetTextMapPropagator().Extract(r.Context(), propagation.HeaderCarrier(r.Header))
+	// Extract the span's context from the HTTP headers.
+	spanContext, _ := tracer.Extract(
+		opentracing.HTTPHeaders,
+		opentracing.HTTPHeadersCarrier(r.Header),
+	)
 
-	// Start a new span as a child of the extracted span context
-	ctx, span := tracer.Start(ctx, "AuthHandler")
-	defer span.End()
+	// Start a new span with the extracted span context as its parent.
+	span := tracer.StartSpan(
+		"auth",
+		opentracing.ChildOf(spanContext),
+	)
+	defer span.Finish()
 
 	var requestPayload struct {
 		Email    string `json:"email"`
@@ -42,6 +47,11 @@ func (app *Config) Authenticate(w http.ResponseWriter, r *http.Request) {
 	valid, err := user.PasswordMatches(requestPayload.Password)
 	if err != nil || !valid {
 		app.errorJSON(w, errors.New("invalid credentials"), http.StatusInternalServerError)
+		return
+	}
+
+	if err != nil {
+		app.errorJSON(w, err)
 		return
 	}
 

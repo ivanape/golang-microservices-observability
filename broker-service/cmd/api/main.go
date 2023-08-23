@@ -1,6 +1,7 @@
 package main
 
 import (
+	"broker/tracing"
 	"fmt"
 	"log"
 	"net/http"
@@ -12,6 +13,8 @@ type Config struct{}
 
 func main() {
 	app := Config{}
+
+	tracing.InitTracer("broker-service")
 
 	log.Printf("Starting broker service on port %s\n", webPort)
 

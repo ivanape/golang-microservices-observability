@@ -5,8 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"go.opentelemetry.io/otel"
-	"go.opentelemetry.io/otel/propagation"
+	"github.com/opentracing/opentracing-go"
 	"net/http"
 	"strconv"
 )
@@ -14,6 +13,7 @@ import (
 type RequestPayload struct {
 	Action string      `json:"action"`
 	Auth   AuthPayload `json:"auth,omitempty"`
+	Log    LogPayload  `json:"log,omitempty"`
 }
 
 type AuthPayload struct {
@@ -21,24 +21,12 @@ type AuthPayload struct {
 	Password string `json:"password"`
 }
 
+type LogPayload struct {
+	Name string `json:"name"`
+	Data string `json:"data"`
+}
+
 func (app *Config) Broker(w http.ResponseWriter, r *http.Request) {
-
-	// The most interesting part
-
-	// initialize tracer
-	tracer := otel.Tracer("broker-service")
-
-	// get ctx, and span from tracer by starting it
-	ctx, span := tracer.Start(r.Context(), "BrokerHandler")
-	defer span.End()
-
-	// creating request to send ctx to auth service, for auth service to catch context
-	ctxReq, _ := http.NewRequest("GET", "http://localhost:8080/auth", nil)
-	otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(ctxReq.Header))
-
-	// Send ctx to auth service
-	client := &http.Client{}
-	client.Do(ctxReq)
 
 	payload := jsonResponse{
 		Error:   false,
@@ -60,6 +48,8 @@ func (app *Config) HandleSubmission(w http.ResponseWriter, r *http.Request) {
 	switch requestPayload.Action {
 	case "auth":
 		app.authenticate(w, requestPayload.Auth)
+	//case "log":
+	//	app.logItem(w, requestPayload.Log)
 	default:
 		app.errorJSON(w, errors.New("unknown action"))
 
@@ -68,33 +58,33 @@ func (app *Config) HandleSubmission(w http.ResponseWriter, r *http.Request) {
 
 func (app *Config) authenticate(w http.ResponseWriter, a AuthPayload) {
 
-	tracer := otel.Tracer("broker-tracer")
-	ctx, span := tracer.Start(context.Background(), "operation-a")
-	defer span.End()
-	header := make(http.Header)
-	otel.GetTextMapPropagator().Inject(ctx, propagation.HeaderCarrier(header))
+	span, _ := opentracing.StartSpanFromContext(context.Background(), "authenticate")
+	defer span.Finish()
 
 	jsonData, _ := json.MarshalIndent(a, "", "\t")
-
 	request, err := http.NewRequest("POST", "http://auth:80/authenticate", bytes.NewBuffer(jsonData))
+	if err != nil {
+		app.errorJSON(w, err)
+		return
+	}
 
-	request.Header = header
-
-	ctx, requestSpan := tracer.Start(request.Context(), "request handling")
-	defer requestSpan.End()
-
-	// Now start a span for the DB operation
-	_, dbSpan := tracer.Start(ctx, "DB operation")
-	defer dbSpan.End()
-
+	// Inject the span's context into the HTTP headers
+	err = opentracing.GlobalTracer().Inject(
+		span.Context(),
+		opentracing.HTTPHeaders,
+		opentracing.HTTPHeadersCarrier(request.Header),
+	)
 	if err != nil {
 		app.errorJSON(w, err)
 		return
 	}
 
 	client := &http.Client{}
-
 	response, err := client.Do(request)
+	if err != nil {
+		app.errorJSON(w, err)
+		return
+	}
 
 	if err != nil {
 
