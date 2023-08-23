@@ -1,3 +1,4 @@
+![Group 1](https://github.com/VahagnMian/golang-microservices-observability/assets/63123814/9e6e4904-ba9f-49ad-8f7f-5dee082854f1)
 # Observability for simple Microservices written in Golang
 
 Welcome to our awesome microservices project written in Go!
