@@ -21,3 +21,11 @@ psql -h localhost -p 5432 -U postgres -d users -a -f ./resources/users.sql
 docker-compose up --build -d
 ```
 
+## 🌐 UI Access
+
+To see the UI in action, navigate to:
+```
+127.0.0.1:80
+```
+#### Once you're there, click on "Test Auth" and "Test Broker" multiple times to generate events. Enjoy the interactivity!
+
