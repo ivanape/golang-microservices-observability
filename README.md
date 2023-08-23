@@ -10,9 +10,9 @@ Before diving in, ensure you have the following:
 
 2.  Execute the following commands to set up your database:
 ```bash
-mkdir -p ./data
-psql -h 5432:5432 -U poostgres -d users -c "CREATE DATABASE users;"
-psql -h hostname -U username -d users -a -f ./resources/users.sql
+docker-compose up -d postgres
+psql -h localhost -p 5432 -U postgres -c "CREATE DATABASE users;"
+psql -h localhost -p 5432 -U postgres -d users -a -f ./resources/users.sql
 ```
 
 ### How to run

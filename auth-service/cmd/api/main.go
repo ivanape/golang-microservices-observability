@@ -1,7 +1,7 @@
 package main
 
 import (
-	"authentication/data"
+	"authentication/models"
 	"authentication/tracing"
 	"context"
 	"database/sql"
@@ -22,7 +22,7 @@ var counts int64
 
 type Config struct {
 	DB     *sql.DB
-	Models data.Models
+	Models models.Models
 	ctx    context.Context
 }
 
@@ -41,7 +41,7 @@ func main() {
 
 	app := Config{
 		DB:     conn,
-		Models: data.New(conn),
+		Models: models.New(conn),
 	}
 
 	srv := &http.Server{
