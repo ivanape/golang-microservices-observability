@@ -42,8 +42,8 @@ func main() {
 		WithStaticLabels(lokirus.Labels{
 			"app":         "example",
 			"environment": "development",
-		}).
-		WithBasicAuth("admin", "secretpassword") // Optional
+			"service":     "auth-service",
+		})
 
 	hook := lokirus.NewLokiHookWithOpts(
 		"http://loki:3300",

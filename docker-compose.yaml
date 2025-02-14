@@ -85,6 +85,11 @@ services:
     environment:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=secret
+    volumes:
+      - ./config/grafana/datasources.yaml:/etc/grafana/provisioning/datasources/provisioning-datasources.yaml:ro
+    depends_on:
+      - tempo
+      - loki
 
   tempo:
     image: grafana/tempo:latest

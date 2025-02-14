@@ -49,11 +49,11 @@ func (app *Config) HandleSubmission(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logger.Printf("Received request with action: %s\n", requestPayload.Action)
+	logger.WithContext(r.Context()).Printf("Received request with action: %s\n", requestPayload.Action)
 
 	switch requestPayload.Action {
 	case "auth":
-		app.authenticate(w, requestPayload.Auth)
+		app.authenticate(w, r, requestPayload.Auth)
 	//case "log":
 	//	app.logItem(w, requestPayload.Log)
 	default:
@@ -62,9 +62,14 @@ func (app *Config) HandleSubmission(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (app *Config) authenticate(w http.ResponseWriter, a AuthPayload) {
+func (app *Config) authenticate(w http.ResponseWriter, r *http.Request, a AuthPayload) {
 
 	span, _ := opentracing.StartSpanFromContext(context.Background(), "authenticate")
+
+	span.SetTag("service", "broker-service").
+		SetTag("app", "example").
+		SetTag("environment", "development")
+
 	defer span.Finish()
 
 	jsonData, _ := json.MarshalIndent(a, "", "\t")
@@ -81,6 +86,7 @@ func (app *Config) authenticate(w http.ResponseWriter, a AuthPayload) {
 		opentracing.HTTPHeadersCarrier(request.Header),
 	)
 	if err != nil {
+		logger.WithContext(r.Context()).Error("Error injecting span context: ", err)
 		app.errorJSON(w, err)
 		return
 	}
@@ -88,24 +94,20 @@ func (app *Config) authenticate(w http.ResponseWriter, a AuthPayload) {
 	client := &http.Client{}
 	response, err := client.Do(request)
 	if err != nil {
+		logger.WithContext(r.Context()).Error("Error calling auth service: ", err)
 		app.errorJSON(w, err)
 		return
-	}
-
-	if err != nil {
-
-		app.errorJSON(w, err)
-		return
-
 	}
 	defer response.Body.Close()
 
 	// make sure we get back the correct status code
 
 	if response.StatusCode == http.StatusUnauthorized {
+		logger.WithContext(r.Context()).Error("Unauthorized")
 		app.errorJSON(w, errors.New(strconv.Itoa(response.StatusCode)))
 		return
 	} else if response.StatusCode != http.StatusAccepted {
+		logger.WithContext(r.Context()).Error("Error calling auth service: ", response.StatusCode)
 		app.errorJSON(w, errors.New(strconv.Itoa(response.StatusCode)))
 		return
 	}
@@ -116,11 +118,13 @@ func (app *Config) authenticate(w http.ResponseWriter, a AuthPayload) {
 
 	err = json.NewDecoder(response.Body).Decode(&jsonFromService)
 	if err != nil {
+		logger.WithContext(r.Context()).Error("Error decoding response from auth service: ", err)
 		app.errorJSON(w, err)
 		return
 	}
 
 	if jsonFromService.Error {
+		logger.WithContext(r.Context()).Error("Error from auth service: ", jsonFromService.Message)
 		app.errorJSON(w, err, http.StatusUnauthorized)
 		return
 	}
@@ -130,6 +134,7 @@ func (app *Config) authenticate(w http.ResponseWriter, a AuthPayload) {
 	payload.Message = "Authenticated!"
 	payload.Data = jsonFromService.Data
 
+	logger.WithContext(r.Context()).Info("User authenticated: ", jsonFromService.Data)
 	app.writeJSON(w, http.StatusAccepted, payload)
 
 }

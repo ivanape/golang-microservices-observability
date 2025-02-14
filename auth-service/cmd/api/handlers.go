@@ -3,7 +3,6 @@ package main
 import (
 	"errors"
 	"fmt"
-	"log"
 	"net/http"
 
 	"github.com/opentracing/opentracing-go"
@@ -23,7 +22,10 @@ func (app *Config) Authenticate(w http.ResponseWriter, r *http.Request) {
 	span := tracer.StartSpan(
 		"auth",
 		opentracing.ChildOf(spanContext),
-	)
+	).SetTag("service", "auth-service").
+		SetTag("app", "example").
+		SetTag("environment", "development")
+
 	defer span.Finish()
 
 	var requestPayload struct {
@@ -40,20 +42,20 @@ func (app *Config) Authenticate(w http.ResponseWriter, r *http.Request) {
 	// validate the user against the database
 	user, err := app.Models.User.GetByEmail(requestPayload.Email)
 	if err != nil {
-		log.Println("Error happend: ", err)
+		logger.WithContext(r.Context()).Error("Error getting user by email: ", err)
 		app.errorJSON(w, errors.New("invalid credentials"), 401)
 		return
 	}
 
 	valid, err := user.PasswordMatches(requestPayload.Password)
 	if err != nil && !valid {
-		logger.Error("Error validating password: ", err)
+		logger.WithContext(r.Context()).Error("Error validating password: ", err)
 		app.errorJSON(w, errors.New("invalid credentials"), http.StatusInternalServerError)
 		return
 	}
 
 	if err != nil {
-		logger.Error("Error validating password: ", err)
+		logger.WithContext(r.Context()).Error("Error validating password: ", err)
 		app.errorJSON(w, err)
 		return
 	}
@@ -64,7 +66,7 @@ func (app *Config) Authenticate(w http.ResponseWriter, r *http.Request) {
 		Data:    user,
 	}
 
-	logger.Info("User logged in: ", user.Email)
+	logger.WithContext(r.Context()).Info("User logged in: ", user.Email)
 
 	app.writeJSON(w, http.StatusAccepted, payload)
 
