@@ -6,6 +6,8 @@ import (
 	"net/http"
 
 	"github.com/opentracing/opentracing-go"
+	"github.com/sirupsen/logrus"
+	"github.com/uber/jaeger-client-go"
 )
 
 func (app *Config) Authenticate(w http.ResponseWriter, r *http.Request) {
@@ -49,7 +51,12 @@ func (app *Config) Authenticate(w http.ResponseWriter, r *http.Request) {
 
 	valid, err := user.PasswordMatches(requestPayload.Password)
 	if err != nil && !valid {
-		logger.WithContext(r.Context()).Error("Error validating password: ", err)
+		logger.WithContext(r.Context()).
+			WithFields(logrus.Fields{
+				"spanID":  span.Context().(jaeger.SpanContext).SpanID().String(),
+				"traceID": span.Context().(jaeger.SpanContext).TraceID().String(),
+			}).
+			Error("Error validating password: ", err)
 		app.errorJSON(w, errors.New("invalid credentials"), http.StatusInternalServerError)
 		return
 	}
@@ -66,7 +73,12 @@ func (app *Config) Authenticate(w http.ResponseWriter, r *http.Request) {
 		Data:    user,
 	}
 
-	logger.WithContext(r.Context()).Info("User logged in: ", user.Email)
+	logger.WithContext(r.Context()).
+		WithFields(logrus.Fields{
+			"spanID":  span.Context().(jaeger.SpanContext).SpanID().String(),
+			"traceID": span.Context().(jaeger.SpanContext).TraceID().String(),
+		}).
+		Info("User logged in: ", user.Email)
 
 	app.writeJSON(w, http.StatusAccepted, payload)
 

@@ -8,8 +8,24 @@ datasources:
     isDefault: true
     jsonData:
       maxLines: 1000
+      derivedFields:
+      - datasourceName: Tempo
+        datasourceUid: Tempo
+        matcherRegex: "\"traceID\":\"(\\w+)\""
+        name: traceID
+        url: $${__value.raw}
 
   - name: Tempo
     type: tempo
     url: http://tempo:3100
     access: proxy
+    jsonData:
+      tracesToLogsV2:
+        datasourceUid: 'Loki'
+        spanStartTimeShift: '-1h'
+        spanEndTimeShift: '1h'
+        tags: [{ key: 'app', value: 'app' }, { key: 'service', value: 'service' }]
+        filterByTraceID: true
+        filterBySpanID: true
+        customQuery: true
+        query: '{app="$${__span.tags.app}"} | json | traceID="$${__trace.traceId}"'
