@@ -5,9 +5,10 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/opentracing/opentracing-go"
 	"net/http"
 	"strconv"
+
+	"github.com/opentracing/opentracing-go"
 )
 
 type RequestPayload struct {
@@ -33,6 +34,8 @@ func (app *Config) Broker(w http.ResponseWriter, r *http.Request) {
 		Message: "Hit the broker",
 	}
 
+	logger.Println("Hit the broker")
+
 	_ = app.writeJSON(w, http.StatusOK, payload)
 }
 
@@ -41,9 +44,12 @@ func (app *Config) HandleSubmission(w http.ResponseWriter, r *http.Request) {
 
 	err := app.readJSON(w, r, &requestPayload)
 	if err != nil {
+		logger.Error("Error reading JSON: ", err)
 		app.errorJSON(w, err)
 		return
 	}
+
+	logger.Printf("Received request with action: %s\n", requestPayload.Action)
 
 	switch requestPayload.Action {
 	case "auth":

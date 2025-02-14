@@ -3,9 +3,10 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/opentracing/opentracing-go"
 	"log"
 	"net/http"
+
+	"github.com/opentracing/opentracing-go"
 )
 
 func (app *Config) Authenticate(w http.ResponseWriter, r *http.Request) {
@@ -45,12 +46,14 @@ func (app *Config) Authenticate(w http.ResponseWriter, r *http.Request) {
 	}
 
 	valid, err := user.PasswordMatches(requestPayload.Password)
-	if err != nil || !valid {
+	if err != nil && !valid {
+		logger.Error("Error validating password: ", err)
 		app.errorJSON(w, errors.New("invalid credentials"), http.StatusInternalServerError)
 		return
 	}
 
 	if err != nil {
+		logger.Error("Error validating password: ", err)
 		app.errorJSON(w, err)
 		return
 	}
@@ -60,6 +63,8 @@ func (app *Config) Authenticate(w http.ResponseWriter, r *http.Request) {
 		Message: fmt.Sprintf("Logged in user %s", user.Email),
 		Data:    user,
 	}
+
+	logger.Info("User logged in: ", user.Email)
 
 	app.writeJSON(w, http.StatusAccepted, payload)
 
