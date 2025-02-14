@@ -4,6 +4,7 @@
 # Binaries for programs and plugins
 .idea
 *.exe
+*App
 *.exe~
 *.dll
 *.so

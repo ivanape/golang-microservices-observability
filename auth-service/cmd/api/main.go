@@ -3,13 +3,14 @@ package main
 import (
 	"authentication/models"
 	"authentication/tracing"
-	"context"
 	"database/sql"
 	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/sirupsen/logrus"
+	"github.com/yukitsune/lokirus"
 
 	_ "github.com/jackc/pgconn"
 	_ "github.com/jackc/pgx/v4"
@@ -20,21 +21,45 @@ const webPort = "80"
 
 var counts int64
 
+var logger *logrus.Logger
+
 type Config struct {
 	DB     *sql.DB
 	Models models.Models
-	ctx    context.Context
 }
 
 func main() {
 
 	tracing.InitTracer("auth-service")
 
-	log.Println("Starting authentication service")
+	logger = logrus.New()
+	// Configure the Loki hook
+	opts := lokirus.NewLokiHookOptions().
+		// Grafana doesn't have a "panic" level, but it does have a "critical" level
+		// https://grafana.com/docs/grafana/latest/explore/logs-integration/
+		WithLevelMap(lokirus.LevelMap{logrus.PanicLevel: "critical"}).
+		WithFormatter(&logrus.JSONFormatter{}).
+		WithStaticLabels(lokirus.Labels{
+			"app":         "example",
+			"environment": "development",
+			"service":     "auth-service",
+		})
+
+	hook := lokirus.NewLokiHookWithOpts(
+		"http://loki:3300",
+		opts,
+		logrus.InfoLevel,
+		logrus.WarnLevel,
+		logrus.ErrorLevel,
+		logrus.FatalLevel)
+
+	logger.Hooks.Add(hook)
+
+	logger.Println("Starting authentication service")
 
 	conn := connectToDB()
 	if conn == nil {
-		log.Panic("Can't connect to Postgres!")
+		logger.Panic("Can't connect to Postgres!")
 	}
 
 	// set up config
@@ -52,7 +77,7 @@ func main() {
 	err1 := srv.ListenAndServe()
 
 	if err1 != nil {
-		log.Panic(err1)
+		logger.Panic(err1)
 	}
 
 }
@@ -80,19 +105,19 @@ func connectToDB() *sql.DB {
 	for {
 		connection, err := openDB(dsn)
 		if err != nil {
-			log.Println("Postgres not yet ready ...")
+			logger.Println("Postgres not yet ready ...")
 			counts++
 		} else {
-			log.Println("Connected to Postgres!")
+			logger.Println("Connected to Postgres!")
 			return connection
 		}
 
 		if counts > 10 {
-			log.Println(err)
+			logger.Println(err)
 			return nil
 		}
 
-		log.Println("Backing off for two seconds.....")
+		logger.Println("Backing off for two seconds.....")
 		time.Sleep(2 * time.Second)
 		continue
 	}

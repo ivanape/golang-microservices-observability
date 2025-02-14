@@ -3,9 +3,11 @@ package main
 import (
 	"errors"
 	"fmt"
-	"github.com/opentracing/opentracing-go"
-	"log"
 	"net/http"
+
+	"github.com/opentracing/opentracing-go"
+	"github.com/sirupsen/logrus"
+	"github.com/uber/jaeger-client-go"
 )
 
 func (app *Config) Authenticate(w http.ResponseWriter, r *http.Request) {
@@ -22,7 +24,10 @@ func (app *Config) Authenticate(w http.ResponseWriter, r *http.Request) {
 	span := tracer.StartSpan(
 		"auth",
 		opentracing.ChildOf(spanContext),
-	)
+	).SetTag("service", "auth-service").
+		SetTag("app", "example").
+		SetTag("environment", "development")
+
 	defer span.Finish()
 
 	var requestPayload struct {
@@ -39,18 +44,25 @@ func (app *Config) Authenticate(w http.ResponseWriter, r *http.Request) {
 	// validate the user against the database
 	user, err := app.Models.User.GetByEmail(requestPayload.Email)
 	if err != nil {
-		log.Println("Error happend: ", err)
+		logger.WithContext(r.Context()).Error("Error getting user by email: ", err)
 		app.errorJSON(w, errors.New("invalid credentials"), 401)
 		return
 	}
 
 	valid, err := user.PasswordMatches(requestPayload.Password)
-	if err != nil || !valid {
+	if err != nil && !valid {
+		logger.WithContext(r.Context()).
+			WithFields(logrus.Fields{
+				"spanID":  span.Context().(jaeger.SpanContext).SpanID().String(),
+				"traceID": span.Context().(jaeger.SpanContext).TraceID().String(),
+			}).
+			Error("Error validating password: ", err)
 		app.errorJSON(w, errors.New("invalid credentials"), http.StatusInternalServerError)
 		return
 	}
 
 	if err != nil {
+		logger.WithContext(r.Context()).Error("Error validating password: ", err)
 		app.errorJSON(w, err)
 		return
 	}
@@ -60,6 +72,13 @@ func (app *Config) Authenticate(w http.ResponseWriter, r *http.Request) {
 		Message: fmt.Sprintf("Logged in user %s", user.Email),
 		Data:    user,
 	}
+
+	logger.WithContext(r.Context()).
+		WithFields(logrus.Fields{
+			"spanID":  span.Context().(jaeger.SpanContext).SpanID().String(),
+			"traceID": span.Context().(jaeger.SpanContext).TraceID().String(),
+		}).
+		Info("User logged in: ", user.Email)
 
 	app.writeJSON(w, http.StatusAccepted, payload)
 
