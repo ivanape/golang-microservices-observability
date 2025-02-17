@@ -1,6 +1,7 @@
 package main
 
 import (
+	"broker/obs"
 	"bytes"
 	"context"
 	"encoding/json"
@@ -28,13 +29,16 @@ type LogPayload struct {
 }
 
 func (app *Config) Broker(w http.ResponseWriter, r *http.Request) {
-
 	payload := jsonResponse{
 		Error:   false,
 		Message: "Hit the broker",
 	}
 
-	logger.Println("Hit the broker")
+	span, _ := opentracing.StartSpanFromContext(context.Background(), "hit-broker")
+	obs.SetSpanTags(span)
+	defer span.Finish()
+
+	obs.LogInfoWithSpan(logger, span, r.Context(), "Hit the broker")
 
 	_ = app.writeJSON(w, http.StatusOK, payload)
 }
@@ -49,28 +53,24 @@ func (app *Config) HandleSubmission(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	logger.WithContext(r.Context()).Printf("Received request with action: %s\n", requestPayload.Action)
+	span, _ := opentracing.StartSpanFromContext(context.Background(), "handle-submission")
+	obs.SetSpanTags(span)
+	defer span.Finish()
+	obs.LogInfoWithSpan(logger, span, r.Context(), "Received request: ", requestPayload)
 
 	switch requestPayload.Action {
 	case "auth":
-		app.authenticate(w, r, requestPayload.Auth)
-	//case "log":
-	//	app.logItem(w, requestPayload.Log)
+		app.authenticate(w, r, requestPayload.Auth, span)
 	default:
 		app.errorJSON(w, errors.New("unknown action"))
 
 	}
 }
 
-func (app *Config) authenticate(w http.ResponseWriter, r *http.Request, a AuthPayload) {
-
-	span, _ := opentracing.StartSpanFromContext(context.Background(), "authenticate")
-
-	span.SetTag("service", "broker-service").
-		SetTag("app", "example").
-		SetTag("environment", "development")
-
-	defer span.Finish()
+func (app *Config) authenticate(w http.ResponseWriter, r *http.Request, a AuthPayload, span opentracing.Span) {
+	authSpan := opentracing.StartSpan("authenticate", opentracing.ChildOf(span.Context()))
+	obs.SetSpanTags(authSpan)
+	defer authSpan.Finish()
 
 	jsonData, _ := json.MarshalIndent(a, "", "\t")
 	request, err := http.NewRequest("POST", "http://auth:80/authenticate", bytes.NewBuffer(jsonData))
@@ -81,12 +81,12 @@ func (app *Config) authenticate(w http.ResponseWriter, r *http.Request, a AuthPa
 
 	// Inject the span's context into the HTTP headers
 	err = opentracing.GlobalTracer().Inject(
-		span.Context(),
+		authSpan.Context(),
 		opentracing.HTTPHeaders,
 		opentracing.HTTPHeadersCarrier(request.Header),
 	)
 	if err != nil {
-		logger.WithContext(r.Context()).Error("Error injecting span context: ", err)
+		obs.LogErrorWithSpan(logger, authSpan, r.Context(), "Error injecting span context: ", err)
 		app.errorJSON(w, err)
 		return
 	}
@@ -94,7 +94,7 @@ func (app *Config) authenticate(w http.ResponseWriter, r *http.Request, a AuthPa
 	client := &http.Client{}
 	response, err := client.Do(request)
 	if err != nil {
-		logger.WithContext(r.Context()).Error("Error calling auth service: ", err)
+		obs.LogErrorWithSpan(logger, authSpan, r.Context(), "Error calling auth service: ", err)
 		app.errorJSON(w, err)
 		return
 	}
@@ -103,11 +103,11 @@ func (app *Config) authenticate(w http.ResponseWriter, r *http.Request, a AuthPa
 	// make sure we get back the correct status code
 
 	if response.StatusCode == http.StatusUnauthorized {
-		logger.WithContext(r.Context()).Error("Unauthorized")
+		obs.LogErrorWithSpan(logger, authSpan, r.Context(), "Unauthorized response from auth service: ", response.StatusCode)
 		app.errorJSON(w, errors.New(strconv.Itoa(response.StatusCode)))
 		return
 	} else if response.StatusCode != http.StatusAccepted {
-		logger.WithContext(r.Context()).Error("Error calling auth service: ", response.StatusCode)
+		obs.LogErrorWithSpan(logger, authSpan, r.Context(), "Unexpected response from auth service: ", response.StatusCode)
 		app.errorJSON(w, errors.New(strconv.Itoa(response.StatusCode)))
 		return
 	}
@@ -118,13 +118,13 @@ func (app *Config) authenticate(w http.ResponseWriter, r *http.Request, a AuthPa
 
 	err = json.NewDecoder(response.Body).Decode(&jsonFromService)
 	if err != nil {
-		logger.WithContext(r.Context()).Error("Error decoding response from auth service: ", err)
+		obs.LogErrorWithSpan(logger, authSpan, r.Context(), "Error decoding response from auth service: ", err)
 		app.errorJSON(w, err)
 		return
 	}
 
 	if jsonFromService.Error {
-		logger.WithContext(r.Context()).Error("Error from auth service: ", jsonFromService.Message)
+		obs.LogErrorWithSpan(logger, authSpan, r.Context(), "Error from auth service: ", jsonFromService.Message)
 		app.errorJSON(w, err, http.StatusUnauthorized)
 		return
 	}
@@ -134,7 +134,7 @@ func (app *Config) authenticate(w http.ResponseWriter, r *http.Request, a AuthPa
 	payload.Message = "Authenticated!"
 	payload.Data = jsonFromService.Data
 
-	logger.WithContext(r.Context()).Info("User authenticated: ", jsonFromService.Data)
+	obs.LogInfoWithSpan(logger, authSpan, r.Context(), "User authenticated: ", jsonFromService.Data)
 	app.writeJSON(w, http.StatusAccepted, payload)
 
 }

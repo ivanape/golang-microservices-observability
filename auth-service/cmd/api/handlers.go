@@ -1,17 +1,15 @@
 package main
 
 import (
+	"authentication/obs"
 	"errors"
 	"fmt"
 	"net/http"
 
 	"github.com/opentracing/opentracing-go"
-	"github.com/sirupsen/logrus"
-	"github.com/uber/jaeger-client-go"
 )
 
 func (app *Config) Authenticate(w http.ResponseWriter, r *http.Request) {
-
 	tracer := opentracing.GlobalTracer()
 
 	// Extract the span's context from the HTTP headers.
@@ -24,9 +22,9 @@ func (app *Config) Authenticate(w http.ResponseWriter, r *http.Request) {
 	span := tracer.StartSpan(
 		"auth",
 		opentracing.ChildOf(spanContext),
-	).SetTag("service", "auth-service").
-		SetTag("app", "example").
-		SetTag("environment", "development")
+	)
+
+	obs.SetSpanTags(span)
 
 	defer span.Finish()
 
@@ -44,25 +42,20 @@ func (app *Config) Authenticate(w http.ResponseWriter, r *http.Request) {
 	// validate the user against the database
 	user, err := app.Models.User.GetByEmail(requestPayload.Email)
 	if err != nil {
-		logger.WithContext(r.Context()).Error("Error getting user by email: ", err)
+		obs.LogErrorWithSpan(logger, span, r.Context(), "Error getting user by email: ", err)
 		app.errorJSON(w, errors.New("invalid credentials"), 401)
 		return
 	}
 
 	valid, err := user.PasswordMatches(requestPayload.Password)
 	if err != nil && !valid {
-		logger.WithContext(r.Context()).
-			WithFields(logrus.Fields{
-				"spanID":  span.Context().(jaeger.SpanContext).SpanID().String(),
-				"traceID": span.Context().(jaeger.SpanContext).TraceID().String(),
-			}).
-			Error("Error validating password: ", err)
+		obs.LogErrorWithSpan(logger, span, r.Context(), "Error validating password: ", err)
 		app.errorJSON(w, errors.New("invalid credentials"), http.StatusInternalServerError)
 		return
 	}
 
 	if err != nil {
-		logger.WithContext(r.Context()).Error("Error validating password: ", err)
+		obs.LogErrorWithSpan(logger, span, r.Context(), "Error validating password: ", err)
 		app.errorJSON(w, err)
 		return
 	}
@@ -73,12 +66,7 @@ func (app *Config) Authenticate(w http.ResponseWriter, r *http.Request) {
 		Data:    user,
 	}
 
-	logger.WithContext(r.Context()).
-		WithFields(logrus.Fields{
-			"spanID":  span.Context().(jaeger.SpanContext).SpanID().String(),
-			"traceID": span.Context().(jaeger.SpanContext).TraceID().String(),
-		}).
-		Info("User logged in: ", user.Email)
+	obs.LogInfoWithSpan(logger, span, r.Context(), "User logged in: ", user.Email)
 
 	app.writeJSON(w, http.StatusAccepted, payload)
 

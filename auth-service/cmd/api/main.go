@@ -2,7 +2,7 @@ package main
 
 import (
 	"authentication/models"
-	"authentication/tracing"
+	"authentication/obs"
 	"database/sql"
 	"fmt"
 	"net/http"
@@ -29,8 +29,7 @@ type Config struct {
 }
 
 func main() {
-
-	tracing.InitTracer("auth-service")
+	obs.InitTracer(obs.DefaultServiceTags["service"])
 
 	logger = logrus.New()
 	// Configure the Loki hook
@@ -39,14 +38,12 @@ func main() {
 		// https://grafana.com/docs/grafana/latest/explore/logs-integration/
 		WithLevelMap(lokirus.LevelMap{logrus.PanicLevel: "critical"}).
 		WithFormatter(&logrus.JSONFormatter{}).
-		WithStaticLabels(lokirus.Labels{
-			"app":         "example",
-			"environment": "development",
-			"service":     "auth-service",
-		})
+		WithStaticLabels(obs.DefaultServiceTags)
+
+	lokiWebHookUrl := os.Getenv("LOKI_WEBHOOK_URL")
 
 	hook := lokirus.NewLokiHookWithOpts(
-		"http://loki:3300",
+		lokiWebHookUrl,
 		opts,
 		logrus.InfoLevel,
 		logrus.WarnLevel,
