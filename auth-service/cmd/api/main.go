@@ -15,13 +15,13 @@ import (
 	_ "github.com/jackc/pgconn"
 	_ "github.com/jackc/pgx/v4"
 	_ "github.com/jackc/pgx/v4/stdlib"
-	"go.opentelemetry.io/otel/trace"
 )
 
 var counts int64
 
 var logger *logrus.Logger
-var globalTracer trace.Tracer
+
+//var globalTracer trace.Tracer
 
 type Config struct {
 	DB     *sql.DB
@@ -30,10 +30,10 @@ type Config struct {
 
 func main() {
 	var err error
-	globalTracer, err = obs.NewTracer()
+	/*globalTracer, err = obs.NewTracer()
 	if err != nil {
 		logger.Panic(err)
-	}
+	}*/
 	metricsConfg, err := obs.NewMetricConfig()
 	if err != nil {
 		logger.Panic(err)
