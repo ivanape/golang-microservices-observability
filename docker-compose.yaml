@@ -82,6 +82,19 @@ services:
     ports:
       - "55680:55680"
 
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: "prometheus"
+    command:
+      - --config.file=/etc/prometheus.yaml
+      - --web.enable-remote-write-receiver
+      - --enable-feature=exemplar-storage
+      - --enable-feature=native-histograms
+    volumes:
+      - ./config/prometheus/config.yaml:/etc/prometheus.yaml
+    ports:
+      - "9090:9090"
+
   grafana:
     image: grafana/grafana:latest
     container_name: "grafana"
