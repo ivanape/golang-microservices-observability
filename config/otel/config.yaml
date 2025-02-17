@@ -41,5 +41,3 @@ service:
       receivers: [otlp]
       processors: [batch]
       exporters: [prometheus, debug]
-
-# https://github.com/riandyrn/otelchi/blob/master/examples/multi-services/otel-collector-config.yaml
