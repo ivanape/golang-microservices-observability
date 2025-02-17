@@ -30,7 +30,7 @@ type Config struct {
 
 func main() {
 	var err error
-	globalTracer, err := obs.NewTracer()
+	globalTracer, err = obs.NewTracer()
 	if err != nil {
 		logger.Panic(err)
 	}
