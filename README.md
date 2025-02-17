@@ -36,5 +36,4 @@ To see logs, metrics, traces and profiles, open Grafana UI at:
 
 ```
 http://localhost:3000
-
 ``` 
