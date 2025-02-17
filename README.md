@@ -1,4 +1,4 @@
-![Group 1](https://github.com/VahagnMian/golang-microservices-observability/assets/63123814/9e6e4904-ba9f-49ad-8f7f-5dee082854f1)
+![Group 1](https://grafana.com/static/assets/img/blog/grafana-labs-lgtm-graphic.png)
 # Observability for simple Microservices written in Golang
 
 Welcome!
@@ -18,7 +18,7 @@ psql -h localhost -p 5432 -U postgres -d users -a -f ./resources/users.sql
 
 ### How to run
 ```bash
-docker-compose up --build -d
+make up_build
 ```
 
 ## 🌐 UI Access
@@ -29,3 +29,12 @@ To see the UI in action, navigate to:
 ```
 #### Once you're there, click on "Test Auth" and "Test Broker" multiple times to generate events. Enjoy the interactivity!
 
+
+## 📊 Access observability stack
+
+To see logs, metrics, traces and profiles, open Grafana UI at:
+
+```
+http://localhost:3000
+
+``` 
