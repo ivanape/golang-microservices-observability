@@ -1,30 +1,39 @@
 package main
 
 import (
+	"broker/obs"
+	"net/http"
+
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
-	"net/http"
+	"github.com/riandyrn/otelchi"
+	otelchimetric "github.com/riandyrn/otelchi/metric"
 )
 
-func (app *Config) routes() http.Handler {
-	mux := chi.NewRouter()
+func (app *Config) routes(metricConfig otelchimetric.BaseConfig) http.Handler {
+	r := chi.NewRouter()
 
 	// specify who is allowed to connect
-	mux.Use(cors.Handler(cors.Options{
-		AllowedOrigins: []string{"https://*", "http://*"},
-		AllowedMethods: []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowedHeaders: []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
-		ExposedHeaders: []string{"Link"},
+	r.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{"https://*", "http://*"},
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		ExposedHeaders:   []string{"Link"},
 		AllowCredentials: true,
-		MaxAge: 300,
-	}))
+		MaxAge:           300,
+	}),
+		otelchi.Middleware(obs.DefaultServiceTags["service"], otelchi.WithChiRoutes(r)),
+		otelchimetric.NewRequestDurationMillis(metricConfig),
+		otelchimetric.NewRequestInFlight(metricConfig),
+		otelchimetric.NewResponseSizeBytes(metricConfig),
+	)
 
-	mux.Use(middleware.Heartbeat("/ping"))
+	r.Use(middleware.Heartbeat("/ping"))
 
-	mux.Post("/", app.Broker)
+	r.Post("/", app.Broker)
 
-	mux.Post("/handle", app.HandleSubmission)
+	r.Post("/handle", app.HandleSubmission)
 
-	return mux
+	return r
 }

@@ -6,27 +6,12 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/opentracing/opentracing-go"
+	"go.opentelemetry.io/otel/trace"
 )
 
 func (app *Config) Authenticate(w http.ResponseWriter, r *http.Request) {
-	tracer := opentracing.GlobalTracer()
-
-	// Extract the span's context from the HTTP headers.
-	spanContext, _ := tracer.Extract(
-		opentracing.HTTPHeaders,
-		opentracing.HTTPHeadersCarrier(r.Header),
-	)
-
-	// Start a new span with the extracted span context as its parent.
-	span := tracer.StartSpan(
-		"auth",
-		opentracing.ChildOf(spanContext),
-	)
-
-	obs.SetSpanTags(span)
-
-	defer span.Finish()
+	span := trace.SpanFromContext(r.Context())
+	defer span.End()
 
 	var requestPayload struct {
 		Email    string `json:"email"`
@@ -66,6 +51,7 @@ func (app *Config) Authenticate(w http.ResponseWriter, r *http.Request) {
 		Data:    user,
 	}
 
+	span.AddEvent("Responding to api call")
 	obs.LogInfoWithSpan(logger, span, r.Context(), "User logged in: ", user.Email)
 
 	app.writeJSON(w, http.StatusAccepted, payload)

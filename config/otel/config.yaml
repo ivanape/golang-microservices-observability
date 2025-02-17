@@ -1,23 +1,44 @@
 receivers:
-  jaeger:
+  # setting up how we receive data from our services
+  otlp:
     protocols:
       grpc:
-        endpoint: 0.0.0.0:14250
-      thrift_http:
-        endpoint: 0.0.0.0:14268
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
 
 processors:
+  # bundle up the data before sending it out
   batch:
 
 exporters:
-  otlp:
-    endpoint: tempo:3200
+  # send metrics to otlp
+  prometheus:
+    endpoint: "0.0.0.0:9090"
+    namespace: "otelchi"
+    const_labels:
+      env: development
+      app: example
+  # send traces to OTLP
+  otlp/tempo:
+    endpoint: tempo:4317
     tls:
       insecure: true
 
+  # keep some logs around for when we need to debug stuff
+  debug:
+    verbosity: normal #detailed or basic
+
 service:
+  # here is where everything sets
   pipelines:
     traces:
-      receivers: [jaeger]
+      receivers: [otlp]
       processors: [batch]
-      exporters: [otlp]
+      exporters: [otlp/tempo, debug]
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [prometheus, debug]
+
+# https://github.com/riandyrn/otelchi/blob/master/examples/multi-services/otel-collector-config.yaml

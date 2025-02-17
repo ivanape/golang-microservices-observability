@@ -9,17 +9,27 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/yukitsune/lokirus"
+	"go.opentelemetry.io/otel/trace"
 )
 
 const webPort = "80"
 
 type Config struct{}
 
+var globalTracer trace.Tracer
 var logger *logrus.Logger
 
 func main() {
 	app := Config{}
-	obs.InitTracer(obs.DefaultServiceTags["service"])
+	var err error
+	globalTracer, err = obs.NewTracer()
+	if err != nil {
+		logger.Panic(err)
+	}
+	metricsConfg, err := obs.NewMetricConfig()
+	if err != nil {
+		logger.Panic(err)
+	}
 
 	logger = logrus.New()
 	// Configure the Loki hook
@@ -47,11 +57,11 @@ func main() {
 	// define http server
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%s", webPort),
-		Handler: app.routes(),
+		Handler: app.routes(metricsConfg),
 	}
 
 	// start the server
-	err := srv.ListenAndServe()
+	err = srv.ListenAndServe()
 	if err != nil {
 		log.Panic(err)
 	}

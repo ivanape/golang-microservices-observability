@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/opentracing/opentracing-go"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
 type RequestPayload struct {
@@ -34,9 +34,8 @@ func (app *Config) Broker(w http.ResponseWriter, r *http.Request) {
 		Message: "Hit the broker",
 	}
 
-	span, _ := opentracing.StartSpanFromContext(context.Background(), "hit-broker")
-	obs.SetSpanTags(span)
-	defer span.Finish()
+	_, span := globalTracer.Start(r.Context(), "broker")
+	defer span.End()
 
 	obs.LogInfoWithSpan(logger, span, r.Context(), "Hit the broker")
 
@@ -53,45 +52,33 @@ func (app *Config) HandleSubmission(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	span, _ := opentracing.StartSpanFromContext(context.Background(), "handle-submission")
-	obs.SetSpanTags(span)
-	defer span.Finish()
-	obs.LogInfoWithSpan(logger, span, r.Context(), "Received request: ", requestPayload)
+	context, span := globalTracer.Start(r.Context(), "handle-submision")
+	defer span.End()
+
+	obs.LogInfoWithSpan(logger, span, context, "Received request: ", requestPayload)
 
 	switch requestPayload.Action {
 	case "auth":
-		app.authenticate(w, r, requestPayload.Auth, span)
+		app.authenticate(w, r, requestPayload.Auth, context)
 	default:
 		app.errorJSON(w, errors.New("unknown action"))
 
 	}
 }
 
-func (app *Config) authenticate(w http.ResponseWriter, r *http.Request, a AuthPayload, span opentracing.Span) {
-	authSpan := opentracing.StartSpan("authenticate", opentracing.ChildOf(span.Context()))
-	obs.SetSpanTags(authSpan)
-	defer authSpan.Finish()
+func (app *Config) authenticate(w http.ResponseWriter, r *http.Request, a AuthPayload, context context.Context) {
+	_, authSpan := globalTracer.Start(context, "authenticate")
+	authSpan.AddEvent("Calling to /authenticate sevice")
+	defer authSpan.End()
 
 	jsonData, _ := json.MarshalIndent(a, "", "\t")
-	request, err := http.NewRequest("POST", "http://auth:80/authenticate", bytes.NewBuffer(jsonData))
+	request, err := http.NewRequestWithContext(context, "POST", "http://auth:80/authenticate", bytes.NewBuffer(jsonData))
 	if err != nil {
 		app.errorJSON(w, err)
 		return
 	}
 
-	// Inject the span's context into the HTTP headers
-	err = opentracing.GlobalTracer().Inject(
-		authSpan.Context(),
-		opentracing.HTTPHeaders,
-		opentracing.HTTPHeadersCarrier(request.Header),
-	)
-	if err != nil {
-		obs.LogErrorWithSpan(logger, authSpan, r.Context(), "Error injecting span context: ", err)
-		app.errorJSON(w, err)
-		return
-	}
-
-	client := &http.Client{}
+	client := &http.Client{Transport: otelhttp.NewTransport(http.DefaultTransport)}
 	response, err := client.Do(request)
 	if err != nil {
 		obs.LogErrorWithSpan(logger, authSpan, r.Context(), "Error calling auth service: ", err)

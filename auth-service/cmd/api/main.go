@@ -15,13 +15,13 @@ import (
 	_ "github.com/jackc/pgconn"
 	_ "github.com/jackc/pgx/v4"
 	_ "github.com/jackc/pgx/v4/stdlib"
+	"go.opentelemetry.io/otel/trace"
 )
-
-const webPort = "80"
 
 var counts int64
 
 var logger *logrus.Logger
+var globalTracer trace.Tracer
 
 type Config struct {
 	DB     *sql.DB
@@ -29,7 +29,15 @@ type Config struct {
 }
 
 func main() {
-	obs.InitTracer(obs.DefaultServiceTags["service"])
+	var err error
+	globalTracer, err := obs.NewTracer()
+	if err != nil {
+		logger.Panic(err)
+	}
+	metricsConfg, err := obs.NewMetricConfig()
+	if err != nil {
+		logger.Panic(err)
+	}
 
 	logger = logrus.New()
 	// Configure the Loki hook
@@ -60,15 +68,14 @@ func main() {
 	}
 
 	// set up config
-
 	app := Config{
 		DB:     conn,
 		Models: models.New(conn),
 	}
 
 	srv := &http.Server{
-		Addr:    fmt.Sprintf(":%s", webPort),
-		Handler: app.routes(),
+		Addr:    fmt.Sprintf(":%s", os.Getenv("PORT")),
+		Handler: app.routes(metricsConfg),
 	}
 
 	err1 := srv.ListenAndServe()
