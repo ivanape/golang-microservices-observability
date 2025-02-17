@@ -13,6 +13,7 @@ datasources:
     editable: false
     jsonData:
       httpMethod: GET
+
   - name: Loki
     type: loki
     url: http://loki:3300
