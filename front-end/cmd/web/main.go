@@ -5,6 +5,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"os"
 )
 
 func main() {
@@ -13,14 +14,13 @@ func main() {
 	})
 
 	fmt.Println("Starting front end service on port 80")
-	err := http.ListenAndServe(":80", nil)
+	err := http.ListenAndServe(fmt.Sprintf(":%s", os.Getenv("PORT")), nil)
 	if err != nil {
 		log.Panic(err)
 	}
 }
 
 func render(w http.ResponseWriter, t string) {
-
 	partials := []string{
 		"./cmd/web/templates/base.layout.gohtml",
 		"./cmd/web/templates/header.partial.gohtml",
@@ -29,10 +29,7 @@ func render(w http.ResponseWriter, t string) {
 
 	var templateSlice []string
 	templateSlice = append(templateSlice, fmt.Sprintf("./cmd/web/templates/%s", t))
-
-	for _, x := range partials {
-		templateSlice = append(templateSlice, x)
-	}
+	templateSlice = append(templateSlice, partials...)
 
 	tmpl, err := template.ParseFiles(templateSlice...)
 	if err != nil {

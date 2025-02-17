@@ -3,8 +3,10 @@ package obs
 import (
 	"context"
 	"fmt"
+	"os"
 	"time"
 
+	"github.com/grafana/pyroscope-go"
 	otelchimetric "github.com/riandyrn/otelchi/metric"
 	"github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
@@ -104,6 +106,17 @@ func NewMetricConfig() (otelchimetric.BaseConfig, error) {
 	return otelchimetric.NewBaseConfig(DefaultServiceTags["service"],
 		otelchimetric.WithMeterProvider(meterProvider),
 	), nil
+}
+
+func NewProfiler() (*pyroscope.Profiler, error) {
+	config := pyroscope.Config{
+		ApplicationName: DefaultServiceTags["service"],
+		ServerAddress:   os.Getenv("PYROSCOPE_SERVER_ADDRESS"),
+		Logger:          pyroscope.StandardLogger,
+		Tags:            DefaultServiceTags,
+	}
+
+	return pyroscope.Start(config)
 }
 
 func LogErrorWithSpan(logger *logrus.Logger, span trace.Span, context context.Context, msg ...interface{}) {

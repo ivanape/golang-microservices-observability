@@ -6,6 +6,7 @@ toolchain go1.22.2
 
 require (
 	github.com/go-chi/chi/v5 v5.1.0
+	github.com/grafana/pyroscope-go v1.2.0
 	github.com/riandyrn/otelchi v0.12.1
 	github.com/sirupsen/logrus v1.9.3
 	github.com/yukitsune/lokirus v1.0.1
@@ -25,7 +26,9 @@ require (
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/google/uuid v1.6.0 // indirect
+	github.com/grafana/pyroscope-go/godeltaprof v0.1.8 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.25.1 // indirect
+	github.com/klauspost/compress v1.17.8 // indirect
 	go.opentelemetry.io/auto/sdk v1.1.0 // indirect
 	go.opentelemetry.io/otel/metric v1.34.0 // indirect
 	go.opentelemetry.io/proto/otlp v1.5.0 // indirect

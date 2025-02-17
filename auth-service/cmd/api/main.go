@@ -39,6 +39,13 @@ func main() {
 		logger.Panic(err)
 	}
 
+	profiler, err := obs.NewProfiler()
+	if err != nil {
+		logger.Panic(err)
+	}
+
+	defer profiler.Stop()
+
 	logger = logrus.New()
 	// Configure the Loki hook
 	opts := lokirus.NewLokiHookOptions().

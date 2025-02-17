@@ -7,6 +7,9 @@ services:
       dockerfile: Dockerfile
     container_name: frontend
     restart: always
+    environment:
+      PORT: "80"
+      PYROSCOPE_SERVER_ADDRESS: http://pyroscope:4040
     ports:
       - 80:80
     deploy:
@@ -31,6 +34,7 @@ services:
       OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: http://otel-collector:4318/v1/metrics
       OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: http/protobuf
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://otel-collector:4318/v1/traces
+      PYROSCOPE_SERVER_ADDRESS: http://pyroscope:4040
     ports:
       - 8080:80
     deploy:
@@ -57,6 +61,7 @@ services:
       OTEL_EXPORTER_OTLP_METRICS_ENDPOINT: http://otel-collector:4318/v1/metrics
       OTEL_EXPORTER_OTLP_TRACES_PROTOCOL: http/protobuf
       OTEL_EXPORTER_OTLP_TRACES_ENDPOINT: http://otel-collector:4318/v1/traces
+      PYROSCOPE_SERVER_ADDRESS: http://pyroscope:4040
     ports:
       - 6080:80
     deploy:
@@ -99,10 +104,12 @@ services:
     ports:
       - 3000:3000
     environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=secret
+      - GF_INSTALL_PLUGINS=grafana-pyroscope-app
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
     volumes:
-      - ./config/grafana/datasources.yaml:/etc/grafana/provisioning/datasources/provisioning-datasources.yaml:ro
+      - ./config/grafana:/etc/grafana/provisioning
     depends_on:
       - tempo
       - loki
@@ -152,3 +159,8 @@ services:
       - "4318:4318"   # OTLP http receiver
       - "8888:8888"   # metrics endpoint
       - "8889:8889"   # Prometheus exporter
+  
+  pyroscope:
+    image: grafana/pyroscope:latest
+    ports:
+    - 4040:4040

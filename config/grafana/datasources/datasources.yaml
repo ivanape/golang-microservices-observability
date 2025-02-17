@@ -42,3 +42,10 @@ datasources:
         filterBySpanID: true
         customQuery: true
         query: '{app="$${__span.tags.app}"} | json | traceID="$${__trace.traceId}"'
+
+  - uid: local-pyroscope
+    type: grafana-pyroscope-datasource
+    name: Pyroscope
+    url: http://pyroscope:4040
+    jsonData:
+      keepCookies: [pyroscope_git_session]
