@@ -14,11 +14,12 @@ processors:
 exporters:
   # send metrics to otlp
   prometheus:
-    endpoint: "0.0.0.0:9090"
+    endpoint: "0.0.0.0:8889"
     namespace: "otelchi"
     const_labels:
       env: development
       app: example
+      source: otel
   # send traces to OTLP
   otlp/tempo:
     endpoint: tempo:4317

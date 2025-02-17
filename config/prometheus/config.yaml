@@ -16,4 +16,4 @@ scrape_configs:
     metric_relabel_configs:
       - source_labels: [__name__]
         regex: '.*otelchi.*'
-        action: keep      
+        action: keep
