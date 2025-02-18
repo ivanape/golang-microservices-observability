@@ -12,6 +12,7 @@ import (
 
 func (app *Config) Authenticate(w http.ResponseWriter, r *http.Request) {
 	span := trace.SpanFromContext(r.Context())
+	logger.Info(span)
 	span.SetAttributes(
 		attribute.KeyValue{
 			Key:   attribute.Key("app"),

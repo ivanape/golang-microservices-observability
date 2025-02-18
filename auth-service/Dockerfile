@@ -1,4 +1,4 @@
-FROM golang:bullseye as builder
+FROM golang:bullseye AS builder
 
 RUN mkdir -p /app
 

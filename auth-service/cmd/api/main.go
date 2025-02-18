@@ -11,6 +11,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 	"github.com/yukitsune/lokirus"
+	"go.opentelemetry.io/otel/trace"
 
 	_ "github.com/jackc/pgconn"
 	_ "github.com/jackc/pgx/v4"
@@ -21,7 +22,7 @@ var counts int64
 
 var logger *logrus.Logger
 
-//var globalTracer trace.Tracer
+var _ trace.Tracer
 
 type Config struct {
 	DB     *sql.DB
@@ -30,10 +31,10 @@ type Config struct {
 
 func main() {
 	var err error
-	/*globalTracer, err = obs.NewTracer()
+	_, err = obs.NewTracer()
 	if err != nil {
 		logger.Panic(err)
-	}*/
+	}
 	metricsConfg, err := obs.NewMetricConfig()
 	if err != nil {
 		logger.Panic(err)
