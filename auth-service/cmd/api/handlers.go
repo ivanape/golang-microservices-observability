@@ -6,11 +6,19 @@ import (
 	"fmt"
 	"net/http"
 
+	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/trace"
 )
 
 func (app *Config) Authenticate(w http.ResponseWriter, r *http.Request) {
 	span := trace.SpanFromContext(r.Context())
+	logger.Info(span)
+	span.SetAttributes(
+		attribute.KeyValue{
+			Key:   attribute.Key("app"),
+			Value: attribute.StringValue("example"),
+		},
+	)
 	defer span.End()
 
 	var requestPayload struct {

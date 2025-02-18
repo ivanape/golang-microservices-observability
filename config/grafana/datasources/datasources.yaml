@@ -35,13 +35,34 @@ datasources:
     jsonData:
       tracesToLogsV2:
         datasourceUid: 'Loki'
-        spanStartTimeShift: '-1h'
-        spanEndTimeShift: '1h'
+        spanStartTimeShift: '-2m'
+        spanEndTimeShift: '2m'
         tags: [{ key: 'app', value: 'app' }, { key: 'service', value: 'service' }]
         filterByTraceID: true
         filterBySpanID: true
         customQuery: true
         query: '{app="$${__span.tags.app}"} | json | traceID="$${__trace.traceId}"'
+
+      tracesToMetrics:
+        datasourceUid: 'Prometheus'
+        spanStartTimeShift: '-2m'
+        spanEndTimeShift: '2m'
+        tags: [{ key: 'app', value: 'app' }, { key: 'service', value: 'net_host_name' }]
+        queries:
+          - name: 'Request Inflight'
+            query: 'otelchi_request_duration_millis_milliseconds_bucket{$$__tags}'
+
+      tracesToProfiles:
+        datasourceUid: 'local-pyroscope'
+        tags: [{ key: 'app', value: 'app' }, { key: 'service.name', value: 'service' }]
+        profileTypeId: 'process_cpu:cpu:nanoseconds:cpu:nanoseconds'
+        customQuery: true
+        query: 'service_name="$${__span.tags.service}"'
+
+      serviceMap:
+        datasourceUid: 'Prometheus'
+      nodeGraph:
+        enabled: true
 
   - uid: local-pyroscope
     type: grafana-pyroscope-datasource

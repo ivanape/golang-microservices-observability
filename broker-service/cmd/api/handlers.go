@@ -10,6 +10,7 @@ import (
 	"strconv"
 
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel/attribute"
 )
 
 type RequestPayload struct {
@@ -35,6 +36,12 @@ func (app *Config) Broker(w http.ResponseWriter, r *http.Request) {
 	}
 
 	_, span := globalTracer.Start(r.Context(), "broker")
+	span.SetAttributes(
+		attribute.KeyValue{
+			Key:   attribute.Key("app"),
+			Value: attribute.StringValue("example"),
+		},
+	)
 	defer span.End()
 
 	obs.LogInfoWithSpan(logger, span, r.Context(), "Hit the broker")
@@ -53,6 +60,12 @@ func (app *Config) HandleSubmission(w http.ResponseWriter, r *http.Request) {
 	}
 
 	context, span := globalTracer.Start(r.Context(), "handle-submision")
+	span.SetAttributes(
+		attribute.KeyValue{
+			Key:   attribute.Key("app"),
+			Value: attribute.StringValue("example"),
+		},
+	)
 	defer span.End()
 
 	obs.LogInfoWithSpan(logger, span, context, "Received request: ", requestPayload)
@@ -68,6 +81,12 @@ func (app *Config) HandleSubmission(w http.ResponseWriter, r *http.Request) {
 
 func (app *Config) authenticate(w http.ResponseWriter, r *http.Request, a AuthPayload, context context.Context) {
 	_, authSpan := globalTracer.Start(context, "authenticate")
+	authSpan.SetAttributes(
+		attribute.KeyValue{
+			Key:   attribute.Key("app"),
+			Value: attribute.StringValue("example"),
+		},
+	)
 	authSpan.AddEvent("Calling to /authenticate sevice")
 	defer authSpan.End()
 
